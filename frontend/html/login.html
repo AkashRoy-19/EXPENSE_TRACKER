@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login | Expense Tracker</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+  <div class="bg-white p-8 rounded shadow-md w-full max-w-md">
+    <h2 class="text-2xl font-bold mb-6 text-center">Login</h2>
+    <form id="loginForm">
+      <div class="mb-4">
+        <label class="block text-gray-700 mb-2">Email</label>
+        <input type="email" id="email" class="w-full p-2 border rounded" required />
+      </div>
+      <div class="mb-4">
+        <label class="block text-gray-700 mb-2">Password</label>
+        <input type="password" id="password" class="w-full p-2 border rounded" required />
+      </div>
+      <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded">Login</button>
+    </form>
+    <p id="error" class="text-red-500 text-sm mt-4 text-center hidden"></p>
+  </div>
+
+  <script>
+    const form = document.getElementById("loginForm");
+    const errorText = document.getElementById("error");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      try {
+        const res = await fetch("http://localhost:5500/api/users/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email, password }),
+        });
+
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.message || "Login failed");
+        }
+
+        // Store JWT token
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("user", JSON.stringify(data.user));
+
+        // Redirect to index.html (dashboard)
+        window.location.href = "index.html";
+      } catch (err) {
+        errorText.textContent = err.message;
+        errorText.classList.remove("hidden");
+      }
+ 
+
+    });
+  </script>
+</body>
+</html>

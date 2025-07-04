@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Monthly Expense Analysis</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f9fafb;
+      padding: 20px;
+      color: #333;
+    }
+    .container {
+      width: 90%;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .chart-container, .monthly-details {
+      background: white;
+      padding: 25px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+      margin-bottom: 30px;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 25px;
+      color: #374151;
+    }
+    h3 {
+      margin: 30px 0 15px 0;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #eee;
+      color: #3b82f6;
+    }
+    .error-message {
+      color: #ef4444;
+      text-align: center;
+      padding: 15px;
+      margin: 20px auto;
+      background: #fee2e2;
+      border-radius: 4px;
+      max-width: 80%;
+    }
+    .loading {
+      text-align: center;
+      margin: 20px;
+      color: #6b7280;
+      font-size: 1.1rem;
+    }
+    .month-section {
+      margin-bottom: 30px;
+      padding: 20px;
+      background: #f8fafc;
+      border-radius: 8px;
+      border-left: 4px solid #3b82f6;
+    }
+    .expense-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px 15px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .expense-item:last-child {
+      border-bottom: none;
+    }
+    .expense-item:hover {
+      background-color: #f3f4f6;
+    }
+    .expense-category {
+      font-weight: 600;
+      color: #1f2937;
+    }
+    .expense-amount {
+      font-weight: 700;
+      color: #ef4444;
+    }
+    .month-total {
+      text-align: right;
+      margin-top: 15px;
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+    .month-name {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 15px;
+      color: #1e40af;
+    }
+    .no-expenses {
+      color: #6b7280;
+      font-style: italic;
+      text-align: center;
+      padding: 15px;
+    }
+    @media (max-width: 768px) {
+      .container {
+        width: 95%;
+        padding: 10px;
+      }
+      .chart-container, .monthly-details {
+        padding: 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="chart-container">
+      <h2>Monthly Expense Overview</h2>
+      <div id="loading" class="loading">Loading data...</div>
+      <div id="error" class="error-message" style="display: none;"></div>
+      <canvas id="monthlyExpenseChart"></canvas>
+    </div>
+
+    <div class="monthly-details">
+      <h2>Detailed Monthly Breakdown</h2>
+      <div id="monthlyDetails"></div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = 'http://localhost:5500/api/v1/transactions';
+    const token = localStorage.getItem('token');
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                       'July', 'August', 'September', 'October', 'November', 'December'];
+
+    async function fetchTransactions() {
+      try {
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('error').style.display = 'none';
+
+        const res = await fetch(API_URL, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          throw new Error(errorData.message || `Server error: ${res.status}`);
+        }
+
+        const result = await res.json();
+        
+        // Handle different response formats
+        let transactions = [];
+        if (Array.isArray(result)) {
+          transactions = result;
+        } else if (result && Array.isArray(result.data)) {
+          transactions = result.data;
+        } else if (result && result.transactions) {
+          transactions = result.transactions;
+        } else {
+          throw new Error('Invalid data format received');
+        }
+
+        // Process data for chart and details
+        const { expensePerMonth, monthlyExpenses } = processTransactionData(transactions);
+        
+        renderChart(expensePerMonth);
+        renderMonthlyDetails(monthlyExpenses);
+        
+      } catch (err) {
+        console.error('Error:', err);
+        document.getElementById('error').textContent = err.message;
+        document.getElementById('error').style.display = 'block';
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+      }
+    }
+
+    function processTransactionData(transactions) {
+      const expensePerMonth = Array(12).fill(0);
+      const monthlyExpenses = Array(12).fill().map(() => ({}));
+
+      transactions.forEach(t => {
+        if (t.type === 'expense') {
+          const month = new Date(t.date).getMonth();
+          const category = t.category || 'Uncategorized';
+          
+          // Add to monthly total
+          expensePerMonth[month] += t.amount;
+          
+          // Add to category breakdown
+          if (!monthlyExpenses[month][category]) {
+            monthlyExpenses[month][category] = 0;
+          }
+          monthlyExpenses[month][category] += t.amount;
+        }
+      });
+
+      return { expensePerMonth, monthlyExpenses };
+    }
+
+    function renderChart(data) {
+      const ctx = document.getElementById('monthlyExpenseChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: monthNames,
+          datasets: [{
+            label: 'Monthly Expenses (€)',
+            data: data,
+            backgroundColor: '#ef4444',
+            borderColor: '#dc2626',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return `€${context.raw.toFixed(2)}`;
+                }
+              }
+            }
+          }, 
+          scales: {
+            y: { 
+              beginAtZero: true,
+              ticks: {
+                callback: function(value) {
+                  return '€' + value;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function renderMonthlyDetails(monthlyExpenses) {
+      const container = document.getElementById('monthlyDetails');
+      container.innerHTML = '';
+
+      monthlyExpenses.forEach((monthData, index) => {
+        const monthTotal = Object.values(monthData).reduce((sum, amount) => sum + amount, 0);
+        if (monthTotal === 0) return;
+
+        const monthSection = document.createElement('div');
+        monthSection.className = 'month-section';
+        
+        const monthTitle = document.createElement('div');
+        monthTitle.className = 'month-name';
+        monthTitle.textContent = monthNames[index];
+        monthSection.appendChild(monthTitle);
+
+        const categories = Object.keys(monthData).sort((a, b) => monthData[b] - monthData[a]);
+        
+        categories.forEach(category => {
+          const expenseItem = document.createElement('div');
+          expenseItem.className = 'expense-item';
+          
+          const categorySpan = document.createElement('span');
+          categorySpan.className = 'expense-category';
+          categorySpan.textContent = category.charAt(0).toUpperCase() + category.slice(1);
+          
+          const amountSpan = document.createElement('span');
+          amountSpan.className = 'expense-amount';
+          amountSpan.textContent = `€${monthData[category].toFixed(2)}`;
+          
+          expenseItem.appendChild(categorySpan);
+          expenseItem.appendChild(amountSpan);
+          monthSection.appendChild(expenseItem);
+        });
+
+        const totalDiv = document.createElement('div');
+        totalDiv.className = 'month-total';
+        totalDiv.textContent = `Total: €${monthTotal.toFixed(2)}`;
+        monthSection.appendChild(totalDiv);
+
+        container.appendChild(monthSection);
+      });
+
+      if (container.children.length === 0) {
+        container.innerHTML = '<div class="no-expenses">No expense data available</div>';
+      }
+    }
+
+    // Check if user is authenticated
+    if (!token) {
+      document.getElementById('error').textContent = 'Please login to view this page';
+      document.getElementById('error').style.display = 'block';
+      document.getElementById('loading').style.display = 'none';
+    } else {
+      fetchTransactions();
+    }
+  </script>
+</body>
+</html>
