@@ -17,7 +17,11 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// Enhanced CORS configuration
+// Enhanced CORS 
+app.get('/', (req, res) => {
+  res.send('Server is live!');
+});
+configuration
 app.use(cors({
   origin: process.env.CLIENT_URL || "http://localhost:3000",
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
