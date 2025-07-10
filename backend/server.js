@@ -19,8 +19,9 @@ const app = express();
 
 // Enhanced CORS 
 app.get('/', (req, res) => {
-  res.send('Server is live!');
+  res.sendFile(path.join(__dirname, '../frontend/html/index.html'));
 });
+
 configuration
 app.use(cors({
   origin: process.env.CLIENT_URL || "http://localhost:3000",
@@ -50,7 +51,7 @@ app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 // Serve ALL frontend files (HTML, JS, CSS)
 // Serve all static files from frontend directory
 // Main static files (serves frontend/html as root)
-app.use(express.static(path.join(__dirname, '../frontend')));
+app.use(express.static(path.join(__dirname, '../frontend/html')));
 
 
 // Special handling for JS files
